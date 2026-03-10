@@ -92,4 +92,57 @@ class BarberController extends Controller
 
         return response()->json($slots);
     }
+
+    // --- FUNCIONES DEL STAFF PANEL ---
+
+    public function staffAvailability(Request $request) {
+        $user_id = $request->query('barber_id');
+        $fecha = $request->query('date');
+        $workday = \App\Models\Workday::where('user_id', $user_id)->where('day', $fecha)->first();
+
+        if (!$workday || !$workday->is_open) return response()->json(['slots' => []]);
+
+        $slots = [];
+        $start = \Carbon\Carbon::parse($workday->start_time);
+        $end = \Carbon\Carbon::parse($workday->end_time);
+
+        while ($start < $end) {
+            $hora = $start->format('H:i');
+            $fechaCompleta = $fecha . ' ' . $hora . ':00';
+            $ocupado = \App\Models\Appointment::where('user_id', $user_id)->where('starts_at', $fechaCompleta)->exists();
+
+            $slots[] = ['time' => $hora, 'available' => !$ocupado];
+            $start->addHour();
+        }
+        return response()->json(['slots' => $slots]);
+    }
+
+    public function getStaffAppointments(Request $request) {
+        $date = $request->query('date', today()->toDateString());
+        // Traemos todas las citas de ese día
+        $appts = \App\Models\Appointment::whereDate('starts_at', $date)->get();
+        return response()->json($appts);
+    }
+
+    public function cancelAppointment($id) {
+        \App\Models\Appointment::destroy($id);
+        return response()->json(['success' => true]);
+    }
+
+    public function setWorkday(Request $request) {
+        $data = $request->validate([
+            'barber_id' => 'required',
+            'day' => 'required|date',
+            'is_open' => 'required|boolean',
+            'start_time' => 'required',
+            'end_time' => 'required',
+        ]);
+
+        // Si ya existe el día lo actualiza, si no, lo crea
+        \App\Models\Workday::updateOrCreate(
+            ['user_id' => $data['barber_id'], 'day' => $data['day']],
+            ['is_open' => $data['is_open'], 'start_time' => $data['start_time'], 'end_time' => $data['end_time']]
+        );
+        return response()->json(['success' => true]);
+    }
 }
