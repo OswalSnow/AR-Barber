@@ -238,12 +238,11 @@
 
 <script>
   // Barberos desde Jinja (server)
-    const BARBERS = [
-        @foreach($barberos as $b)
-        { id: {{ $b->id }}, name: "{{ $b->name }}" },
-        @endforeach
-    ];
-    
+ const BARBERS = [
+    @foreach($barberos as $b)
+      { id: {{ $b->id }}, name: "{{ $b->name }}" },
+    @endforeach
+  ];
   const dateEl  = document.getElementById("date");
   const tokenEl = document.getElementById("staff_token");
   const tabsEl  = document.getElementById("tabs");
@@ -332,13 +331,21 @@
 
   async function fetchAppointmentsAll(){
     const token = (tokenEl.value || "").trim();
+    console.log("🔑 Token presente:", !!token);
     if(!token) throw new Error("Falta token para ver citas (endpoint staff requiere token).");
 
+    console.log("📡 Pidiendo citas a /staff/appointments, fecha:", dateEl.value);
     const res = await fetch("/staff/appointments?" + qs({ date: dateEl.value }),{
       headers: { "x-staff-token": token }
     });
-    if(!res.ok) throw new Error(await res.text());
-    return await res.json(); // [{id,customer_name,customer_phone,starts_at,barber_id}, ...]
+    if(!res.ok){
+      const errText = await res.text();
+      console.error("❌ Error del servidor:", errText);
+      throw new Error(errText);
+    }
+    const data = await res.json();
+    console.log("✅ Citas retornadas del servidor:", data);
+    return data;
   }
 
   function groupByBarber(appts){
@@ -408,7 +415,7 @@
     const bodyEl = document.getElementById(`appts_${barber_id}`);
     bodyEl.innerHTML = "";
 
-    if(!appts.length){
+    if(!Array.isArray(appts) || !appts.length){
       bodyEl.innerHTML = `<tr><td colspan="4" class="muted">Sin citas</td></tr>`;
       return;
     }
@@ -489,14 +496,17 @@
     let appts = [];
     try{
       appts = await fetchAppointmentsAll();
+      console.log("✅ Citas cargadas:", appts);
     }catch(e){
       // si no hay token, igual renderizamos horarios
+      console.warn("⚠️ Error citas:", e.message);
       hintEl.textContent = e.message || "No se pudieron cargar citas.";
       appts = [];
     }
 
     const grouped = groupByBarber(appts);
     const apptsForBarber = grouped[b.id] || [];
+    console.log("📌 Citas para barbero " + b.id + ":", apptsForBarber);
 
     // 2) Horarios
     try{

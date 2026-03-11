@@ -295,8 +295,7 @@
     areaEl.appendChild(sectionShell(b));
 
     const appts = await fetchAppointmentsAll();
-    const apptsForBarber = appts.filter(a => a.barber_id === b.id).sort((x,y) => x.starts_at > y.starts_at ? 1 : -1);
-
+    const apptsForBarber = appts.filter(a => a.user_id === b.id).sort((x,y) => x.starts_at > y.starts_at ? 1 : -1);
     const av = await fetchAvailability(b.id, dateEl.value);
     renderSlots(b.id, av, apptsForBarber);
     renderAppointments(b.id, apptsForBarber);
