@@ -74,8 +74,8 @@
 
 <header id="inicio" class="hero">
     <div class="container">
-        <h1 class="display-1 fw-bold">AR <span class="gold-text">BARBERÍA</span> & STUDIO</h1>
-        <p class="fs-4 mb-4">Cortes de autor y estilo clásico</p>
+        <h1 class="display-1 fw-bold">AR <span class="gold-text">BARBERÍA</span> & ?</h1>
+        <p class="fs-4 mb-4">Cortes de bdbasb</p>
         <a href="#barberos" class="btn bg-gold btn-lg px-5 py-3 fw-bold">AGENDAR UNA CITA</a>
     </div>
 </header>
@@ -94,7 +94,7 @@
                      class="card-img-top barber-img" alt="{{ $barbero->name }}">
                 <div class="card-body text-center">
                     <h4 class="gold-text">{{ $barbero->name }}</h4>
-                    <p class="text-secondary small">Maestro Barbero</p>
+                    <p class="text-secondary small">Barbero</p>
                     <a href="/agendar/{{ $barbero->id }}" class="btn btn-outline-warning w-100 fw-bold">SELECCIONAR</a>
                 </div>
             </div>

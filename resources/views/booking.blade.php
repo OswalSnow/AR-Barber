@@ -31,7 +31,7 @@
                         <input type="text" name="customer_name" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label gold-text">WhatsApp</label>
+                        <label class="form-label gold-text">Celular</label>
                         <input type="tel" name="customer_phone" class="form-control" 
                             pattern="[0-9]{10}" maxlength="10" placeholder="Ej: 3312345678" required>
                     </div>
