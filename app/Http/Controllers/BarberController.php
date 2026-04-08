@@ -57,7 +57,7 @@ class BarberController extends Controller
         ]);
 
         // 5. Redirigimos al inicio con el mensaje de éxito
-        return redirect('/')->with('success', '¡Cita agendada con éxito! Te contactaremos por WhatsApp.');
+        return redirect('/')->with('success', '¡Cita agendada con éxito! ¡Te esperamos');
     }
 
     public function checkAvailability($user_id, $fecha)

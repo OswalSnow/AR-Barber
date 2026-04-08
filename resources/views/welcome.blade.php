@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Barbería & Studio | Inicio</title>
+    <title>AR Barbería</title>
+    <link rel="icon" href="{{ asset('img/logo.png') }}" type="image/png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Roboto:wght@300;400&display=swap" rel="stylesheet">
     <style>
@@ -49,7 +50,7 @@
             <ul class="navbar-nav ms-auto text-center">
                 <li class="nav-item"><a class="nav-link" href="#inicio">Inicio</a></li>
                 <li class="nav-item"><a class="nav-link" href="#barberos">Barberos</a></li>
-                <li class="nav-item"><a class="nav-link" href="#servicios">Servicios</a></li>
+                <li class="nav-item"><a class="nav-link" href="/servicios">Servicios</a></li>
                 <li class="nav-item"><a class="nav-link" href="/login" class="gold-text">Acceso Staff</a></li>
             </ul>
         </div>
@@ -74,15 +75,15 @@
 
 <header id="inicio" class="hero">
     <div class="container">
-        <h1 class="display-1 fw-bold">AR <span class="gold-text">BARBERÍA</span> & ?</h1>
-        <p class="fs-4 mb-4">Cortes de bdbasb</p>
+        <h1 class="display-1 fw-bold">AR <span class="gold-text">BARBERÍA</span></h1>
+        <p class="fs-4 mb-4">Pasión en cada trazo, excelencia en cada estilo</p>
         <a href="#barberos" class="btn bg-gold btn-lg px-5 py-3 fw-bold">AGENDAR UNA CITA</a>
     </div>
 </header>
 
 <section id="barberos" class="container py-5">
     <div class="text-center mb-5">
-        <h2 class="display-4 fw-bold">Nuestros <span class="gold-text">Expertos</span></h2>
+        <h2 class="display-4 fw-bold">Nuestros <span class="gold-text">Barberos</span></h2>
         <div class="mx-auto bg-gold" style="height: 4px; width: 100px;"></div>
     </div>
 

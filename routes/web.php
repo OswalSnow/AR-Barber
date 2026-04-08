@@ -4,17 +4,19 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\BarberController;
 use Illuminate\Support\Facades\Route;
 
-// ==========================================
-// RUTAS PÚBLICAS (Lo que armamos nosotros)
-// ==========================================
+//Rutas publicas
+
 Route::get('/', [BarberController::class, 'index']);
 Route::get('/agendar/{id}', [BarberController::class, 'showBookingForm']);
 Route::post('/confirmar-cita', [BarberController::class, 'store']);
 Route::get('/api/disponibilidad/{user_id}/{fecha}', [BarberController::class, 'checkAvailability']);
 
-// ==========================================
+Route::get('/servicios', function () {
+    return view('servicios');
+});
+
 // RUTAS PRIVADAS BREEZE (Requieren Login)
-// ==========================================
+
 Route::get('/dashboard', function () {
     // 1. Buscamos a los barberos en la base de datos
     $barberos = \App\Models\User::where('role', 'barber')->get();
