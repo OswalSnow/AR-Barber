@@ -415,7 +415,8 @@
     const bodyEl = document.getElementById(`appts_${barber_id}`);
     bodyEl.innerHTML = "";
 
-    if(!Array.isArray(appts) || !appts.length){
+    if(!Array.isArray(appts) || !appts.// Leemos cuánto tiempo necesita el cliente (por defecto 30 mins)
+        $duracionMinutos = $request->query('duration', 30);length){
       bodyEl.innerHTML = `<tr><td colspan="4" class="muted">Sin citas</td></tr>`;
       return;
     }

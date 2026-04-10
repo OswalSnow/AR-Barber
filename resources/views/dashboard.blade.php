@@ -88,7 +88,13 @@
     }
     .barberHead{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
     .barberName{ font-size:16px; font-weight:900; }
-    .slots{ display:grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap:10px; margin-top:10px; }
+    .slots {
+      display: grid;
+      /* Reducimos el ancho mínimo de 120px a 90px para que quepan más en una fila */
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); 
+      gap: 8px;
+      margin-top: 10px;
+    }
     .slot{ border:1px solid rgba(255,255,255,.10); border-radius:16px; padding:10px; text-align:center; }
     .slot.available{ background: var(--sky); border-color: var(--skybd); }
     .slot.busy{ background: var(--red); border-color: var(--redbd); }
@@ -134,13 +140,7 @@
   </div>
 
 <script>
-  // Barberos inyectados desde Laravel Blade
-  const BARBERS = [
-    @foreach($barberos as $b)
-      { id: {{ $b->id }}, name: "{{ $b->name }}" },
-    @endforeach
-  ];
-
+  const BARBERS = [@foreach($barberos as $b){ id: {{ $b->id }}, name: "{{ $b->name }}" },@endforeach];
   const dateEl = document.getElementById("date");
   const tabsEl = document.getElementById("tabs");
   const areaEl = document.getElementById("activeArea");
@@ -150,155 +150,153 @@
   let ACTIVE_BARBER_ID = (BARBERS[0]?.id || null);
   dateEl.value = new Date().toISOString().slice(0,10);
 
-  function qs(p){ return new URLSearchParams(p).toString(); }
-
   function toHHMM(dtStr){
     if(!dtStr) return "";
-    const s = dtStr.toString();
-    if(s.includes("T")) return s.split("T")[1].slice(0,5);
-    if(s.includes(" ")) return s.split(" ")[1].slice(0,5);
-    return s.slice(0,5);
+    const match = dtStr.toString().match(/(\d{2}:\d{2})/);
+    return match ? match[1] : dtStr.slice(0,5);
   }
 
   function buildTabs(){
     tabsEl.innerHTML = "";
-    for(const b of BARBERS){
+    BARBERS.forEach(b => {
       const btn = document.createElement("button");
       btn.className = "tab" + (b.id === ACTIVE_BARBER_ID ? " active" : "");
       btn.textContent = b.name;
       btn.onclick = ()=>{ ACTIVE_BARBER_ID = b.id; reloadActiveBarber(); };
       tabsEl.appendChild(btn);
-    }
+    });
   }
 
   function sectionShell(b){
     const div = document.createElement("div");
     div.className = "card";
     div.innerHTML = `
-      <div class="barberHead">
-        <div>
-          <div class="barberName">✂️ ${b.name}</div>
-          <div class="muted">Azul = libre · Rojo = reservado</div>
-        </div>
-      </div>
+      <div class="barberHead"><div><div class="barberName">✂️ ${b.name}</div><div class="muted">Azul = libre · Rojo = ocupado</div></div></div>
       <div class="slots" id="slots_${b.id}">Cargando horarios...</div>
       <div style="margin-top:14px;">
         <div class="barberName" style="font-size:14px;">📌 Citas del día</div>
         <table>
-          <thead><tr><th>Hora</th><th>Cliente</th><th>Tel</th><th>Acción</th></tr></thead>
-          <tbody id="appts_${b.id}"><tr><td colspan="4" class="muted">Cargando...</td></tr></tbody>
+          <thead><tr><th>Hora</th><th>Servicio</th><th>Cliente</th><th>Tel</th><th>Acción</th></tr></thead>
+          <tbody id="appts_${b.id}"><tr><td colspan="5" class="muted">Cargando...</td></tr></tbody>
         </table>
-      </div>
-    `;
+      </div>`;
     return div;
-  }
-
-  async function fetchAvailability(barber_id, date){
-    const res = await fetch("/staff/availability?" + qs({ barber_id, date }));
-    return await res.json();
-  }
-
-  async function fetchAppointmentsAll(){
-    const res = await fetch("/staff/appointments?" + qs({ date: dateEl.value }));
-    return await res.json(); 
-  }
-
-  function buildApptMap(appts){
-    const m = {};
-    for(const a of appts){
-      m[toHHMM(a.starts_at)] = { id: a.id, name: a.customer_name, phone: a.customer_phone };
-    }
-    return m;
   }
 
   function renderSlots(barber_id, data, apptsForBarber){
     const slotsEl = document.getElementById(`slots_${barber_id}`);
+    if(!slotsEl) return;
     slotsEl.innerHTML = "";
-    const apptMap = buildApptMap(apptsForBarber || []);
+    
+    const apptMap = {};
+    if(Array.isArray(apptsForBarber)){
+        apptsForBarber.forEach(a => { apptMap[toHHMM(a.starts_at)] = a; });
+    }
 
-    (data.slots || []).forEach(s=>{
+    const slots = data.slots || [];
+    if(slots.length === 0){
+        slotsEl.innerHTML = '<div class="muted">Sin horarios configurados.</div>';
+        return;
+    }
+
+    slots.forEach(s => {
       const d = document.createElement("div");
-      const isFree = s.available;
-      d.className = "slot " + (isFree ? "available" : "busy");
+      const citaDirecta = apptMap[s.time];
+      
+      // Lógica de 1 hora (Corte + Barba)
+      let esSegundaMitad = false;
+      const timeParts = s.time.split(':');
+      if(timeParts.length === 2){
+          const [h, m] = timeParts.map(Number);
+          let totalMin = (h * 60 + m) - 30;
+          const horaPrevia = `${Math.floor(totalMin/60).toString().padStart(2,'0')}:${(totalMin%60).toString().padStart(2,'0')}`;
+          esSegundaMitad = apptMap[horaPrevia] && apptMap[horaPrevia].servicio === 'ambos';
+      }
 
-      if(isFree){
-        d.innerHTML = `<div style="font-weight:900;">${s.time}</div><div class="muted" style="margin-top:4px;">Disponible</div>`;
+      const isBusy = citaDirecta || esSegundaMitad;
+      d.className = "slot " + (isBusy ? "busy" : "available");
+      
+      if(!isBusy){
+        d.innerHTML = `<div style="font-weight:900;">${s.time}</div><div class="muted" style="font-size:10px;">Libre</div>`;
       } else {
-        const a = apptMap[s.time];
+        const a = citaDirecta || (esSegundaMitad ? apptMap[Object.keys(apptMap).find(k => k < s.time)] : null);
         d.innerHTML = `
           <div style="font-weight:900;">${s.time}</div>
-          <div style="margin-top:6px; font-size:12px; line-height:1.15; opacity:.92;">
-            <div style="font-weight:800;">${a?.name || 'Ocupado'}</div>
-            <div style="opacity:.85;">${a?.phone || ''}</div>
+          <div style="font-size:11px; margin-top:4px;">
+            <div style="font-weight:800; color:${citaDirecta?'#ef4444':'#9ca3af'}; text-overflow:ellipsis; overflow:hidden;">${a?.customer_name || 'Ocupado'}</div>
           </div>`;
       }
       slotsEl.appendChild(d);
     });
-
-    if(!(data.slots || []).length){
-      slotsEl.innerHTML = `<div class="muted">Sin horarios para esta fecha (día cerrado o no configurado).</div>`;
-    }
   }
 
   function renderAppointments(barber_id, appts){
     const bodyEl = document.getElementById(`appts_${barber_id}`);
+    if(!bodyEl) return;
     bodyEl.innerHTML = "";
-    if(!appts.length){
-      bodyEl.innerHTML = `<tr><td colspan="4" class="muted">Sin citas</td></tr>`;
-      return;
+    if(!Array.isArray(appts) || !appts.length) { 
+        bodyEl.innerHTML = `<tr><td colspan="5" class="muted">Sin citas agendadas</td></tr>`; 
+        return; 
     }
-    for(const a of appts){
+    appts.forEach(a => {
       const tr = document.createElement("tr");
+      const serv = (a.servicio || 'corte').toUpperCase();
       tr.innerHTML = `
         <td><b>${toHHMM(a.starts_at)}</b></td>
-        <td>${a.customer_name}</td>
-        <td>${a.customer_phone}</td>
-        <td><button class="danger" onclick="cancelAppt(${a.id})">Cancelar</button></td>
-      `;
+        <td><span style="color:${a.servicio==='ambos'?'#d4af37':'#9ca3af'}; font-size:11px; font-weight:bold;">${serv}</span></td>
+        <td>${a.customer_name}</td><td>${a.customer_phone}</td>
+        <td><button class="danger" onclick="cancelAppt(${a.id})">Cancelar</button></td>`;
       bodyEl.appendChild(tr);
+    });
+  }
+
+  async function reloadActiveBarber(){
+    buildTabs(); 
+    areaEl.innerHTML = "";
+    const b = BARBERS.find(x=>x.id === ACTIVE_BARBER_ID);
+    if(!b) return;
+    
+    areaEl.appendChild(sectionShell(b));
+    
+    try {
+        const [resAppts, resAv] = await Promise.all([
+            fetch("/staff/appointments?date=" + dateEl.value),
+            fetch("/staff/availability?barber_id=" + b.id + "&date=" + dateEl.value)
+        ]);
+
+        const appts = await resAppts.json();
+        const av = await resAv.json();
+
+        const bAppts = Array.isArray(appts) ? appts.filter(a => a.user_id === b.id).sort((x,y) => x.starts_at > y.starts_at ? 1 : -1) : [];
+        
+        renderSlots(b.id, av, bAppts);
+        renderAppointments(b.id, bAppts);
+    } catch(e) { 
+        console.error("Error en Staff Panel:", e);
+        const errSlots = document.getElementById(`slots_${b.id}`);
+        if(errSlots) errSlots.innerHTML = '<div class="text-danger">Error de conexión.</div>';
     }
   }
 
   async function cancelAppt(id){
-    if(!confirm("¿Cancelar esta cita de forma permanente?")) return;
-    const res = await fetch(`/staff/appointments/${id}`, { 
-      method: "DELETE", 
-      headers: { "X-CSRF-TOKEN": CSRF_TOKEN } 
-    });
-    if(!res.ok) { alert("Error al cancelar."); return; }
-    await reloadActiveBarber();
+    if(!confirm("¿Cancelar cita?")) return;
+    await fetch(`/staff/appointments/${id}`, { method: "DELETE", headers: { "X-CSRF-TOKEN": CSRF_TOKEN } });
+    reloadActiveBarber();
   }
 
   async function setWorkday(is_open){
-    const day = dateEl.value;
-    const start_time = document.getElementById("ws_start").value;
-    const end_time = document.getElementById("ws_end").value;
-
-    const res = await fetch("/staff/workdays/set", {
+    await fetch("/staff/workdays/set", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CSRF-TOKEN": CSRF_TOKEN },
-      body: JSON.stringify({ barber_id: ACTIVE_BARBER_ID, day, is_open, start_time, end_time })
+      body: JSON.stringify({ 
+        barber_id: ACTIVE_BARBER_ID, 
+        day: dateEl.value, 
+        is_open, 
+        start_time: document.getElementById("ws_start").value, 
+        end_time: document.getElementById("ws_end").value 
+      })
     });
-
-    if(!res.ok){ alert("Error al guardar el día."); return; }
-    hintEl.textContent = is_open ? "✅ Día abierto correctamente." : "⛔ Día cerrado. No se recibirán citas.";
-    setTimeout(()=>hintEl.textContent="", 2500);
-    await reloadActiveBarber();
-  }
-
-  async function reloadActiveBarber(){
-    buildTabs();
-    areaEl.innerHTML = "";
-    const b = BARBERS.find(x=>x.id === ACTIVE_BARBER_ID);
-    if(!b) return;
-
-    areaEl.appendChild(sectionShell(b));
-
-    const appts = await fetchAppointmentsAll();
-    const apptsForBarber = appts.filter(a => a.user_id === b.id).sort((x,y) => x.starts_at > y.starts_at ? 1 : -1);
-    const av = await fetchAvailability(b.id, dateEl.value);
-    renderSlots(b.id, av, apptsForBarber);
-    renderAppointments(b.id, apptsForBarber);
+    reloadActiveBarber();
   }
 
   dateEl.onchange = reloadActiveBarber;

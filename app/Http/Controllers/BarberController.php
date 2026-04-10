@@ -25,69 +25,98 @@ class BarberController extends Controller
 
     public function store(Request $request)
     {
-        // 1. Validamos los campos que vienen del nuevo formulario
         $request->validate([
             'customer_name'  => 'required|string|max:255',
             'customer_phone' => 'required|regex:/^[0-9]{10}$/',
+            'servicio'       => 'required|in:corte,barba,ambos',
             'fecha'          => 'required|date|after_or_equal:today',
             'hora'           => 'required',
             'user_id'        => 'required|exists:users,id',
         ]);
 
-        // 2. Juntamos la fecha y la hora para que MySQL las entienda
-        // Esto convierte "2026-03-10" y "14:00" en "2026-03-10 14:00:00"
-        $fechaCompleta = $request->fecha . ' ' . $request->hora . ':00';
+        // 1. Calculamos la duración
+        $duracion = $request->servicio == 'ambos' ? 60 : 30;
 
-        // 3. Verificación de seguridad: ¿Alguien más ganó el lugar mientras llenabas el formulario?
+        // 2. Armamos las fechas de inicio y fin con Carbon
+        $fechaInicio = \Carbon\Carbon::parse($request->fecha . ' ' . $request->hora . ':00');
+        $fechaFin = $fechaInicio->copy()->addMinutes((int)$duracion);
+
+        // 3. Verificación Anti-Spam: Máximo 2 citas activas
+        $citasActivas = \App\Models\Appointment::where('customer_phone', $request->customer_phone)
+                        ->where('starts_at', '>=', now())
+                        ->count();
+
+        if ($citasActivas >= 2) {
+            return back()->withErrors(['customer_phone' => 'límite']); // Dispara el aviso de WhatsApp
+        }
+
+        // 4. Verificación de seguridad por si alguien más ganó el lugar
+        // Chocan si: (NuevoInicio < ViejoFin) Y (NuevoFin > ViejoInicio)
         $existeCita = \App\Models\Appointment::where('user_id', $request->user_id)
-                        ->where('starts_at', $fechaCompleta)
+                        ->whereDate('starts_at', $fechaInicio->toDateString())
+                        ->where(function ($query) use ($fechaInicio, $fechaFin) {
+                            $query->where('starts_at', '<', $fechaFin)
+                                  ->where('ends_at', '>', $fechaInicio);
+                        })
                         ->exists();
 
         if ($existeCita) {
             return back()->withErrors(['hora' => 'Este horario ya fue ocupado. Elige otro.']);
         }
 
-        // 4. Creamos la cita con el campo starts_at ya armado
+        // 5. Creamos la cita
         \App\Models\Appointment::create([
             'customer_name'  => $request->customer_name,
             'customer_phone' => $request->customer_phone,
-            'starts_at'      => $fechaCompleta,
+            'servicio'       => $request->servicio,
+            'starts_at'      => $fechaInicio,
+            'ends_at'        => $fechaFin,
             'user_id'        => $request->user_id,
             'status'         => 'pending',
         ]);
 
-        // 5. Redirigimos al inicio con el mensaje de éxito
-        return redirect('/')->with('success', '¡Cita agendada con éxito! ¡Te esperamos');
+        $fechaBonita = $fechaInicio->format('d/m/Y');
+        $mensaje = "¡Todo listo, {$request->customer_name}! Tu cita quedó confirmada para el día $fechaBonita a las {$request->hora}.";
+        return redirect('/')->with('success', $mensaje);
     }
 
-    public function checkAvailability($user_id, $fecha)
+    public function checkAvailability(Request $request, $user_id, $fecha)
     {
-        // 1. checar disponibilidad de barbero en el dia
-        $workday = \App\Models\Workday::where('user_id', $user_id)
-                    ->where('day', $fecha)
-                    ->where('is_open', true)
-                    ->first();
+        // Leemos cuánto tiempo necesita el cliente y lo forzamos a entero
+        $duracionMinutos = (int) $request->query('duration', 30);
 
-        if (!$workday) return response()->json([]); // No trabaja
+        $workday = \App\Models\Workday::where('user_id', $user_id)->where('day', $fecha)->where('is_open', true)->first();
+        if (!$workday) return response()->json([]);
 
-        // 2. Generar rangos de 1 hora
         $slots = [];
         $start = \Carbon\Carbon::parse($workday->start_time);
         $end = \Carbon\Carbon::parse($workday->end_time);
 
+        // Avanzamos de 30 en 30 minutos
         while ($start < $end) {
-            $slotTime = $start->format('H:i');
-            
-            // 3. Verificar si ya hay una cita a esa hora
+            $slotStart = $start->copy();
+            $slotEnd = $start->copy()->addMinutes($duracionMinutos);
+
+            // Si el servicio dura 1 hora y se sale del horario de salida, no lo mostramos
+            if ($slotEnd > $end) {
+                $start->addMinutes(30);
+                continue;
+            }
+
+            // Checamos si choca con alguna cita existente
             $exists = \App\Models\Appointment::where('user_id', $user_id)
                         ->whereDate('starts_at', $fecha)
-                        ->whereTime('starts_at', $slotTime)
+                        ->where(function ($query) use ($slotStart, $slotEnd) {
+                            $query->where('starts_at', '<', $slotEnd)
+                                  ->where('ends_at', '>', $slotStart);
+                        })
                         ->exists();
 
             if (!$exists) {
-                $slots[] = $slotTime;
+                $slots[] = $slotStart->format('H:i');
             }
-            $start->addHour(); // Citas de 1 hora
+            
+            $start->addMinutes(30);
         }
 
         return response()->json($slots);
@@ -98,6 +127,10 @@ class BarberController extends Controller
     public function staffAvailability(Request $request) {
         $user_id = $request->query('barber_id');
         $fecha = $request->query('date');
+
+        // Validación básica por si falta algún dato
+        if (!$user_id || !$fecha) return response()->json(['slots' => []]);
+
         $workday = \App\Models\Workday::where('user_id', $user_id)->where('day', $fecha)->first();
 
         if (!$workday || !$workday->is_open) return response()->json(['slots' => []]);
@@ -108,11 +141,28 @@ class BarberController extends Controller
 
         while ($start < $end) {
             $hora = $start->format('H:i');
-            $fechaCompleta = $fecha . ' ' . $hora . ':00';
-            $ocupado = \App\Models\Appointment::where('user_id', $user_id)->where('starts_at', $fechaCompleta)->exists();
+            $slotStart = \Carbon\Carbon::parse($fecha . ' ' . $hora);
+            $slotEnd = $slotStart->copy()->addMinutes(30);
 
-            $slots[] = ['time' => $hora, 'available' => !$ocupado];
-            $start->addHour();
+            // Buscamos si hay cita. Manejamos el caso de citas viejas sin 'ends_at'
+            $ocupado = \App\Models\Appointment::where('user_id', $user_id)
+                        ->whereDate('starts_at', $fecha)
+                        ->where(function ($query) use ($slotStart, $slotEnd) {
+                            $query->where(function($q) use ($slotStart, $slotEnd) {
+                                $q->where('starts_at', '<', $slotEnd)
+                                  ->where('ends_at', '>', $slotStart);
+                            })
+                            ->orWhere('starts_at', $slotStart); // Respaldo para citas viejas
+                        })
+                        ->exists();
+
+            $slots[] = [
+                'time' => $hora, 
+                'available' => !$ocupado,
+                'status' => $ocupado ? 'occupied' : 'available'
+            ];
+            
+            $start->addMinutes(30);
         }
         return response()->json(['slots' => $slots]);
     }
