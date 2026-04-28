@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [BarberController::class, 'index']);
 Route::get('/agendar/{id}', [BarberController::class, 'showBookingForm']);
-Route::post('/confirmar-cita', [BarberController::class, 'store']);
+Route::post('/confirmar-cita', [BarberController::class, 'store'])->middleware('throttle:3,1');
 Route::get('/api/disponibilidad/{user_id}/{fecha}', [BarberController::class, 'checkAvailability']);
 
 Route::get('/servicios', function () {

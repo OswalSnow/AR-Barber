@@ -14,7 +14,7 @@ class BarberSeeder extends Seeder
     {
         $barberos = [
             ['name' => 'Alberto', 'email' => 'alberto@barberia.com'],
-            ['name' => 'Angel Venegas', 'email' => 'angel@barberia.com'],
+            ['name' => 'Angel', 'email' => 'angel@barberia.com'],
             ['name' => 'Anibal', 'email' => 'anibal@barberia.com'],
             ['name' => 'Kinich', 'email' => 'kinich@barberia.com'],
         ];
@@ -23,7 +23,7 @@ class BarberSeeder extends Seeder
             \App\Models\User::create([
                 'name' => $b['name'],
                 'email' => $b['email'],
-                'password' => bcrypt('betocontrasena'), // contraseña database
+                'password' => bcrypt('betocontrasenabrrnd'), // contraseña database
                 'role' => 'barber',
             ]);
         }
