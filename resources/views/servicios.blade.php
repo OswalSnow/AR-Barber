@@ -197,7 +197,6 @@
                 <div class="col-12 col-md-6 col-lg-4"><div class="gallery-item"><img src="{{ asset('img/portafolio/kinich-6.jpg') }}" class="gallery-img"></div></div>
             </div>
              <div class="text-center mt-5">
-                <a href="https://www.instagram.com/kiinichbarber?igsh=MWZsbXowMDFleTRpeA==" target="_blank" class="ig-btn">📸 Ver más trabajos en su Instagram</a>
             </div>
         </div>
 
