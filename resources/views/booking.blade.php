@@ -278,19 +278,28 @@ http://127.0.0.1:8000
             });
     }
 
-    // Inicializar Flatpickr
-    flatpickr("#fecha_cita", {
-        locale: "es",
-        dateFormat: "Y-m-d",
-        altInput: true,
-        altFormat: "d/m/Y",
-        minDate: "today",
-        disableMobile: "true",
-        onChange: function(selectedDates, dateStr) {
-            fechaSeleccionada = dateStr;
-            cargarHorarios(); // Llama a la función cuando eligen fecha
-        }
-    });
+    // Pasamos la fecha calculada desde Laravel a JavaScript
+        const defaultDateString = "{{ $defaultDate }}"; 
+
+        // Inicializar Flatpickr
+        const fp = flatpickr("#fecha_cita", {
+            locale: "es",
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "d/m/Y",
+            minDate: "today",
+            defaultDate: defaultDateString,
+            disableMobile: "true",
+            onChange: function(selectedDates, dateStr) {
+                fechaSeleccionada = dateStr;
+                cargarHorarios();
+            }
+        });
+
+        // Como flatpickr no dispara el evento 'onChange' cuando carga por primera vez la defaultDate,
+        // forzamos la carga de horarios inmediatamente después de inicializarlo:
+        fechaSeleccionada = defaultDateString;
+        cargarHorarios();
 
     // Si el usuario cambia de "Solo Corte" a "Corte y Barba", recargamos los horarios
     selectServicio.addEventListener('change', cargarHorarios);

@@ -37,10 +37,29 @@ class BarberController extends Controller
     }
 
     public function showBookingForm($id)
-    {
-        $barbero = User::findOrFail($id);
-        return view('booking', compact('barbero'));
-    }
+        {
+            $barbero = User::findOrFail($id);
+            
+            $now = now();
+
+            // Buscamos el próximo día en el que el barbero trabaje
+            // y que la hora de salida de ese día sea MAYOR a la hora actual
+            $nextWorkday = \App\Models\Workday::where('user_id', $id)
+                ->where('day', '>=', $now->toDateString())
+                ->where('is_open', true)
+                ->orderBy('day', 'asc')
+                ->get()
+                ->first(function ($workday) use ($now) {
+                    $end = \Carbon\Carbon::parse($workday->day . ' ' . $workday->end_time);
+                    return $end > $now; // ¿Aún no termina su turno ese día?
+                });
+
+            // Si encontramos un día, lo usamos. Si no, usamos mañana por si acaso.
+            $defaultDate = $nextWorkday ? $nextWorkday->day : $now->copy()->addDay()->toDateString();
+
+            // Le pasamos esa variable a la vista
+            return view('booking', compact('barbero', 'defaultDate'));
+        }
 
     public function store(Request $request)
     {
@@ -99,30 +118,37 @@ class BarberController extends Controller
         return redirect('/')->with('success', $mensaje);
     }
 
-    public function checkAvailability(Request $request, $user_id, $fecha)
+public function checkAvailability(Request $request, $user_id, $fecha)
     {
-        // Leemos cuánto tiempo necesita el cliente y lo forzamos a entero
         $duracionMinutos = (int) $request->query('duration', 30);
 
         $workday = \App\Models\Workday::where('user_id', $user_id)->where('day', $fecha)->where('is_open', true)->first();
         if (!$workday) return response()->json([]);
 
         $slots = [];
-        $start = \Carbon\Carbon::parse($workday->start_time);
-        $end = \Carbon\Carbon::parse($workday->end_time);
+        // Aquí concatenamos la fecha para que Carbon tenga el día y la hora exactos
+        $start = \Carbon\Carbon::parse($fecha . ' ' . $workday->start_time);
+        $end = \Carbon\Carbon::parse($fecha . ' ' . $workday->end_time);
+        
+        $now = now(); // Obtiene la fecha y hora actual
 
-        // Avanzamos de 30 en 30 minutos
         while ($start < $end) {
             $slotStart = $start->copy();
             $slotEnd = $start->copy()->addMinutes($duracionMinutos);
 
-            // Si el servicio dura 1 hora y se sale del horario de salida, no lo mostramos
+            // 1. Si el servicio se pasa de la hora de salida del barbero, no lo mostramos
             if ($slotEnd > $end) {
                 $start->addMinutes(30);
                 continue;
             }
 
-            // Checamos si choca con alguna cita existente
+            //Si la fecha seleccionada es hoy, y el bloque de hora ya pasó, lo saltamos
+            if ($slotStart < $now) {
+                $start->addMinutes(30);
+                continue;
+            }
+
+            // 3. Checamos si choca con alguna cita existente
             $exists = \App\Models\Appointment::where('user_id', $user_id)
                         ->whereDate('starts_at', $fecha)
                         ->where(function ($query) use ($slotStart, $slotEnd) {
