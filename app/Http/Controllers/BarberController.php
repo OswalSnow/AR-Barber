@@ -4,36 +4,35 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Models\PortfolioImage;
 
 class BarberController extends Controller
 {
     public function index()
     {
-        // 1. El orden nuevo (fíjate que Anibal ya no tiene acento para que coincida con tu DB)
+        // 2. IMPORTANTE: Jalamos las fotos de la base de datos
+        $images = PortfolioImage::latest()->get();
+
         $ordenDeseado = ['Alberto', 'Anibal', 'Kinich', 'Angel'];
 
         $barberos = User::where('role', 'barber')
                         ->where('is_active', true)
                         ->get()
                         ->sortBy(function ($user) use ($ordenDeseado) {
-                            // Limpiamos espacios en blanco por si las moscas y buscamos la posición
                             $posicion = array_search(trim($user->name), $ordenDeseado);
-                            // Si no lo encuentra, lo manda al final (99)
                             return $posicion === false ? 99 : $posicion;
                         })
-                        // 2. IMPORTANTE: values() reordena los índices internos para que el foreach de Blade no se vuelva loco
                         ->values()
-                        // 3. El parche para ocultar las redes de Kinich
                         ->map(function ($barbero) {
                             if (str_contains($barbero->name, 'Kinich')) {
-                                // Ajusta estas columnas según cómo se llamen en tu DB
                                 $barbero->facebook = null;
                                 $barbero->instagram = null; 
                             }
                             return $barbero;
                         });
 
-        return view('welcome', compact('barberos'));
+        // 3. IMPORTANTE: Le mandamos tanto los 'barberos' como las 'images' a la vista
+        return view('welcome', compact('barberos', 'images'));
     }
 
     public function showBookingForm($id)

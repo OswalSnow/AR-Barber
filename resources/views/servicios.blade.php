@@ -35,7 +35,7 @@
             margin: 0 5px 10px 5px;
             border: 1px solid rgba(255,255,255,0.1);
             transition: all 0.3s;
-            font-family: 'Roboto', sans-serif; /* Mantiene Roboto para los botones */
+            font-family: 'Roboto', sans-serif; 
             text-transform: none;
             background: transparent;
         }
@@ -70,7 +70,7 @@
             width: 100%;
             height: auto; 
             max-height: 500px; 
-            object-fit: contain; /* Ajusta sin recortar */
+            object-fit: contain; 
             transition: transform 0.5s ease;
         }
 
@@ -148,6 +148,10 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link nav-link-pill" id="pills-kinich-tab" data-bs-toggle="pill" data-bs-target="#pills-kinich" type="button" role="tab">Kinich</button>
         </li>
+        
+        <li class="nav-item" role="presentation">
+            <button class="nav-link nav-link-pill" id="pills-nuevos-tab" data-bs-toggle="pill" data-bs-target="#pills-nuevos" type="button" role="tab" style="border-color: var(--gold); color: var(--gold);">✨ Nuevos Cortes</button>
+        </li>
     </ul>
 
     <div class="tab-content" id="pills-tabContent">
@@ -200,9 +204,34 @@
             </div>
         </div>
 
-    </div>
-</div>
+        <div class="tab-pane fade" id="pills-nuevos" role="tabpanel">
+            <div class="row g-4 justify-content-center">
+                @if(isset($images) && $images->isNotEmpty())
+                    @foreach($images as $image)
+                        <div class="col-12 col-md-6 col-lg-4">
+                            <div class="gallery-item">
+                                <img src="{{ asset('storage/' . $image->path) }}" class="gallery-img">
+                            </div>
+                            @auth
+                            <form action="{{ route('staff.portfolio.destroy', $image->id) }}" method="POST" class="mt-2 text-center">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" style="background-color: #dc3545; color: white; border: none; padding: 5px 15px; border-radius: 20px; font-weight: bold; cursor: pointer;">🗑️ Borrar Foto</button>
+                            </form>
+                            @endauth
+                        </div>
+                    @endforeach
+                @else
+                    <div class="col-12 text-center">
+                        <p class="text-light-muted" style="margin-top: 40px;">Aún no se han subido nuevos cortes recientes.</p>
+                    </div>
+                @endif
+            </div>
+        </div>
 
+        </div>
+    </div>
+    
 <div class="cta-banner py-5 mt-4">
     <div class="container text-center">
         <h3 class="mb-3 fw-bold">¿Listo para un <span class="gold-text">cambio</span>?</h3>

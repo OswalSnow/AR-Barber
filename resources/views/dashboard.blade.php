@@ -90,7 +90,6 @@
     .barberName{ font-size:16px; font-weight:900; }
     .slots {
       display: grid;
-      /* Reducimos el ancho mínimo de 120px a 90px para que quepan más en una fila */
       grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); 
       gap: 8px;
       margin-top: 10px;
@@ -131,7 +130,16 @@
         <button class="btn2" type="button" onclick="reloadActiveBarber()">🔄 Refrescar</button>
       </div>
 
-      <div class="tabs" id="tabs"></div>
+      <hr>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div style="font-size:14px; font-weight:700; color:var(--brand);">📸 Subir foto al portafolio</div>
+        <form action="{{ route('staff.portfolio.store') }}" method="POST" enctype="multipart/form-data" style="display:flex; gap:10px; align-items:center;">
+            @csrf
+            <input type="file" name="image" accept="image/png, image/jpeg" style="padding:6px; border-radius:10px; font-size:12px; max-width:250px;" required>
+            <button type="submit" class="btn2" style="font-size:12px; padding:8px 12px; border-color:var(--brand); color:var(--brand);">Subir</button>
+        </form>
+      </div>
+      <div class="tabs" id="tabs" style="margin-top:20px;"></div>
       <hr>
       <div class="muted" id="hint" style="height: 20px;"></div>
     </div>
@@ -203,7 +211,6 @@
       const d = document.createElement("div");
       const citaDirecta = apptMap[s.time];
       
-      // Lógica de 1 hora (Corte + Barba)
       let esSegundaMitad = false;
       const timeParts = s.time.split(':');
       if(timeParts.length === 2){
